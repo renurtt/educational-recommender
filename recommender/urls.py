@@ -7,5 +7,5 @@ router = routers.DefaultRouter()
 
 # Wire up our API using automatic URL routing.
 urlpatterns = [
-    path('', RecommenderApiView.as_view()),
+    path('similarUsersInSkillSet', RecommenderApiView.as_view()),
 ]

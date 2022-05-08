@@ -2,6 +2,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
 import pandas as pd
 
+from recommender.models import User
+
 
 class SimilaritiesLookUp:
 
@@ -30,7 +32,7 @@ class SimilaritiesLookUp:
         sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
         # print(sim_scores)
         # Get the scores of top 10 descriptions.
-        sim_scores = sim_scores[0:10]
+        sim_scores = sim_scores
         # Get the student indices.
         indices = [i[0] for i in sim_scores]
         return pd.concat(
@@ -38,7 +40,7 @@ class SimilaritiesLookUp:
             axis=1, ignore_index=False)
 
     @staticmethod
-    def get_similarities():
+    def get_similarities(target_user_sill_set, other_users, threshold):
         # new_desc = pd.Series('c#_proficient java_low')
         # data = pd.DataFrame.from_dict(
         #     {
@@ -53,4 +55,14 @@ class SimilaritiesLookUp:
                        'fasf fsda dev']})
         descriptions = data['col_2']
 
-        return SimilaritiesLookUp.get_recommendations(data, new_desc, descriptions)['col_2']
+        new_desc = pd.Series(target_user_sill_set)
+        data = pd.DataFrame.from_records(other_users)
+        # print(data)
+        descriptions = data['skill_set']
+
+        recommended_users = SimilaritiesLookUp.get_recommendations(data, new_desc, descriptions)
+        recommended_users = recommended_users[recommended_users['score'] >= threshold]
+
+        recommended_users_list = [User(row['username'], row['external_id'], row['score']) for index, row in recommended_users.iterrows()]
+
+        return recommended_users_list
