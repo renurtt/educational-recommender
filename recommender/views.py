@@ -3,11 +3,12 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .SimilaritiesLookUp import SimilaritiesLookUp
-from .models import SimilarUserResponse, User
-from .serializers import SimilarUserResponseSerializer, UserSerializer
+from .models import SimilarUserResponse, User, MatchingMaterialsResponse
+from .serializers import SimilarUserResponseSerializer, UserSerializer, LearningMaterialSerializer, \
+    MatchingMaterialsResponseSerializer
 
 
-class RecommenderApiView(APIView):
+class SimilarUsersInSkillSet(APIView):
     authentication_classes = []  # disables authentication
     permission_classes = []  # disables permission
 
@@ -52,7 +53,10 @@ class RecommenderApiView(APIView):
 
         target_user_sill_set = request.data.get('targetUser').get('skillSet')
 
-        other_users = [{'username': x.get('username'), 'external_id': x.get('externalId'), 'skill_set': x.get('skillSet')} for x in
+        other_users = [{'username': x.get('username'),
+                        'external_id': x.get('externalId'),
+                        'skill_set': x.get('skillSet'),
+                        'desired_position': x.get('desiredPosition')} for x in
                        request.data.get('otherUsers')]
 
         threshold = request.data.get('threshold')
@@ -61,10 +65,65 @@ class RecommenderApiView(APIView):
 
         similar_user_response = SimilarUserResponse()
 
-        similar_user_response.similarUsers = SimilaritiesLookUp.get_similarities(target_user_sill_set, other_users,
-                                                                                  threshold)
+        similar_user_response.similarUsers = SimilaritiesLookUp.get_similarities_in_skill_set(target_user_sill_set,
+                                                                                              other_users,
+                                                                                              threshold)
 
         similar_user_response.similarUsers = [UserSerializer(x).data for x in similar_user_response.similarUsers]
 
         serializer = SimilarUserResponseSerializer(similar_user_response)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class SimilarUsersInDesiredPosition(APIView):
+    authentication_classes = []  # disables authentication
+    permission_classes = []  # disables permission
+
+    def post(self, request, *args, **kwargs):
+        # similar_user_response.similar_users = ['123', request.data.get('user')]
+
+        target_user_sill_set = request.data.get('targetUser').get('desiredPosition')
+
+        other_users = [{'username': x.get('username'),
+                        'external_id': x.get('externalId'),
+                        'skill_set': x.get('skillSet'),
+                        'desired_position': x.get('desiredPosition')} for x in
+                       request.data.get('otherUsers')]
+
+        threshold = request.data.get('threshold')
+        if threshold is None:
+            threshold = 0
+
+        similar_user_response = SimilarUserResponse()
+
+        similar_user_response.similarUsers = SimilaritiesLookUp.get_similarities_in_desired_position(
+            target_user_sill_set, other_users,
+            threshold)
+
+        similar_user_response.similarUsers = [UserSerializer(x).data for x in similar_user_response.similarUsers]
+
+        serializer = SimilarUserResponseSerializer(similar_user_response)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class SimilarContent(APIView):
+    authentication_classes = []  # disables authentication
+    permission_classes = []  # disables permission
+
+    def post(self, request, *args, **kwargs):
+        # similar_user_response.similar_users = ['123', request.data.get('user')]
+        target_user_desc = request.data.get('targetUser').get('description')
+        materials = [{'id': x.get('id'),
+                      'overview': x.get('overview')}
+                     for x in request.data.get('materials')]
+
+        response = MatchingMaterialsResponse()
+        response.matchingMaterials = SimilaritiesLookUp.get_similar_materials(target_user_desc, materials)
+
+        response.matchingMaterials = [LearningMaterialSerializer(x).data for x in response.matchingMaterials]
+        print(response.matchingMaterials)
+        serializer = MatchingMaterialsResponseSerializer(response)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+

@@ -21,3 +21,18 @@ class SimilarUserResponse(models.Model):
 
     def __str__(self):
         return '1'
+
+
+class LearningMaterial(models.Model):
+    materialId = models.IntegerField(null=True)
+    score = models.FloatField(null=True)
+
+    def __init__(self, materialId=0, score=0):
+        self.materialId = materialId
+        self.score = score
+
+class MatchingMaterialsResponse(models.Model):
+    matchingMaterials = []
+
+    def __str__(self):
+        return '1'

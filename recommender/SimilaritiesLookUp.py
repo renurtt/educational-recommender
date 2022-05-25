@@ -2,7 +2,11 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
 import pandas as pd
 
-from recommender.models import User
+from recommender.models import User, LearningMaterial
+
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.feature_extraction.text import CountVectorizer
+import pymorphy2
 
 
 class SimilaritiesLookUp:
@@ -40,7 +44,7 @@ class SimilaritiesLookUp:
             axis=1, ignore_index=False)
 
     @staticmethod
-    def get_similarities(target_user_sill_set, other_users, threshold):
+    def get_similarities_in_skill_set(target_user_sill_set, other_users, threshold):
         # new_desc = pd.Series('c#_proficient java_low')
         # data = pd.DataFrame.from_dict(
         #     {
@@ -49,11 +53,11 @@ class SimilaritiesLookUp:
         # print('Skill set similar to: ', new_desc)
         # print(SimilaritiesLookUp.get_recommendations(new_desc, descriptions))
 
-        new_desc = pd.Series('java dev')
-        data = pd.DataFrame.from_dict(
-            {'col_2': ['junior python dev', 'junior js dev', 'senior java dev', 'senior dafs dev', 'kfsld ewe dev',
-                       'fasf fsda dev']})
-        descriptions = data['col_2']
+        # new_desc = pd.Series('java dev')
+        # data = pd.DataFrame.from_dict(
+        #     {'col_2': ['junior python dev', 'junior js dev', 'senior java dev', 'senior dafs dev', 'kfsld ewe dev',
+        #                'fasf fsda dev']})
+        # descriptions = data['col_2']
 
         new_desc = pd.Series(target_user_sill_set)
         data = pd.DataFrame.from_records(other_users)
@@ -63,6 +67,70 @@ class SimilaritiesLookUp:
         recommended_users = SimilaritiesLookUp.get_recommendations(data, new_desc, descriptions)
         recommended_users = recommended_users[recommended_users['score'] >= threshold]
 
-        recommended_users_list = [User(row['username'], row['external_id'], row['score']) for index, row in recommended_users.iterrows()]
+        recommended_users_list = [User(row['username'], row['external_id'], row['score']) for index, row in
+                                  recommended_users.iterrows()]
 
         return recommended_users_list
+
+    @staticmethod
+    def get_similarities_in_desired_position(target_user_desired_position, other_users, threshold):
+        new_desc = pd.Series(target_user_desired_position)
+        data = pd.DataFrame.from_records(other_users)
+        # print(data)
+        descriptions = data['desired_position']
+
+        recommended_users = SimilaritiesLookUp.get_recommendations(data, new_desc, descriptions)
+        recommended_users = recommended_users[recommended_users['score'] >= threshold]
+
+        recommended_users_list = [User(row['username'], row['external_id'], row['score']) for index, row in
+                                  recommended_users.iterrows()]
+
+        return recommended_users_list
+
+    @staticmethod
+    def normalize_words_in_string(morph, string):
+        x = [morph.parse(word)[0].normal_form for word in string.split(' ')]
+        normalized = ' '.join(x)
+        return normalized
+
+    @staticmethod
+    def get_similar_materials(user_description, materials):
+        pd.options.mode.chained_assignment = None
+        morph = pymorphy2.MorphAnalyzer()
+
+        user_description = SimilaritiesLookUp.normalize_words_in_string(morph, user_description)
+
+        user_description = pd.Series(user_description)
+        materials = pd.DataFrame.from_records(materials)
+
+        for i in range(len(materials['overview'])):
+            materials['overview'][i] = SimilaritiesLookUp.normalize_words_in_string(morph, materials['overview'][i])
+
+        materials_desc = materials['overview']
+
+
+        overall_descriptions = pd.concat([materials_desc, user_description])
+
+        cv = CountVectorizer()
+        count_matrix = cv.fit_transform(overall_descriptions)
+        cosine_sim = cosine_similarity(count_matrix)
+
+        # print(cosine_sim)
+        sim_scores = list(enumerate(cosine_sim[-1][:-1]))
+        # print('sim_scores', sim_scores)
+        sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
+
+        indices = [i[0] for i in sim_scores]
+
+        recommendations = pd.concat([materials.iloc[indices],
+                                     pd.Series([i[1] for i in sim_scores], name='score',
+                                               index=[i[0] for i in sim_scores])],
+                                    axis=1, ignore_index=False)
+
+        # print('rec', recommendations)
+
+        recommendations = recommendations[recommendations['score'] >= 0.1]
+
+        recommendations = [LearningMaterial(row['id'], row['score']) for index, row in
+                           recommendations.iterrows()]
+        return recommendations
