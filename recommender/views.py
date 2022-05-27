@@ -110,6 +110,8 @@ class SimilarContent(APIView):
     authentication_classes = []  # disables authentication
     permission_classes = []  # disables permission
 
+    similarUsersLookup = SimilaritiesLookUp()
+
     def post(self, request, *args, **kwargs):
         # similar_user_response.similar_users = ['123', request.data.get('user')]
         target_user_desc = request.data.get('targetUser').get('description')
@@ -118,7 +120,7 @@ class SimilarContent(APIView):
                      for x in request.data.get('materials')]
 
         response = MatchingMaterialsResponse()
-        response.matchingMaterials = SimilaritiesLookUp.get_similar_materials(target_user_desc, materials)
+        response.matchingMaterials = self.similarUsersLookup.get_similar_materials(target_user_desc, materials)
 
         response.matchingMaterials = [LearningMaterialSerializer(x).data for x in response.matchingMaterials]
         print(response.matchingMaterials)

@@ -93,25 +93,33 @@ class SimilaritiesLookUp:
         normalized = ' '.join(x)
         return normalized
 
-    @staticmethod
-    def get_similar_materials(user_description, materials):
+    normalized_materials = []
+
+    # @staticmethod
+    def get_similar_materials(self, user_description, materials):
         pd.options.mode.chained_assignment = None
         morph = pymorphy2.MorphAnalyzer()
 
         user_description = SimilaritiesLookUp.normalize_words_in_string(morph, user_description)
 
         user_description = pd.Series(user_description)
-        materials = pd.DataFrame.from_records(materials)
 
-        for i in range(len(materials['overview'])):
-            materials['overview'][i] = SimilaritiesLookUp.normalize_words_in_string(morph, materials['overview'][i])
+        print(user_description)
+        if len(self.normalized_materials) == 0:
+            materials = pd.DataFrame.from_records(materials)
+
+            for i in range(len(materials['overview'])):
+                materials['overview'][i] = SimilaritiesLookUp.normalize_words_in_string(morph, materials['overview'][i])
+
+            self.normalized_materials = materials.copy(True)
+        else:
+            materials = self.normalized_materials
 
         materials_desc = materials['overview']
 
-
         overall_descriptions = pd.concat([materials_desc, user_description])
 
-        cv = CountVectorizer()
+        cv = TfidfVectorizer()
         count_matrix = cv.fit_transform(overall_descriptions)
         cosine_sim = cosine_similarity(count_matrix)
 
